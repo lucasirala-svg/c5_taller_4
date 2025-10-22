@@ -55,13 +55,16 @@ La API sigue las convenciones REST y se organiza en los siguientes recursos. Tod
 | `DELETE` | `/api/mesas/{id}` | Eliminar una mesa        |
 
 ### Pedidos (`/api/pedidos`)
-| Método | Endpoint                       | Acción                             |
-| :----- | :----------------------------- | :--------------------------------- |
-| `GET`    | `/api/pedidos`                 | Listar todos los pedidos           |
-| `GET`    | `/api/pedidos/{id}`            | Obtener un pedido por ID           |
-| `POST`   | `/api/pedidos`                 | Crear un nuevo pedido              |
-| `PUT`    | `/api/pedidos/{id}/estado`     | Actualizar solo el estado del pedido |
-| `DELETE` | `/api/pedidos/{id}`            | Eliminar un pedido                 |
+| Método | Endpoint                                | Acción                                  |
+| :----- | :-------------------------------------- | :-------------------------------------- |
+| `GET`    | `/api/pedidos`                          | Listar todos los pedidos                |
+| `GET`    | `/api/pedidos/{id}`                     | Obtener un pedido completo por ID       |
+| `POST`   | `/api/pedidos`                          | Crear un nuevo pedido completo          |
+| `PUT`    | `/api/pedidos/{id}`                     | Actualizar un pedido completo           |
+| `DELETE` | `/api/pedidos/{id}`                     | Eliminar un pedido                      |
+| `POST`   | `/api/pedidos/{id}/detalles`            | Añadir un nuevo producto a un pedido    |
+| `PUT`    | `/api/pedidos/{id}/detalles/{detalleId}`| Actualizar un detalle de un pedido      |
+| `DELETE` | `/api/pedidos/{id}/detalles/{detalleId}`| Quitar un producto de un pedido         |
 
 ---
 

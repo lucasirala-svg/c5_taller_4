@@ -37,7 +37,7 @@ public class PedidoService {
         pedidoExistente.detalles.clear();
 
         for (DetallePedido nuevoDetalle : pedidoActualizado.detalles) {
-            nuevoDetalle.pedido = pedidoExistente; // Volvemos a enlazar el detalle con su pedido padre
+            nuevoDetalle.pedido = pedidoExistente;
             pedidoExistente.detalles.add(nuevoDetalle);
         }
 
@@ -49,5 +49,46 @@ public class PedidoService {
     public void eliminar(Long id) {
         Pedido pedidoExistente = obtenerPorId(id);
         pedidoExistente.delete();
+    }
+
+    @Transactional
+    public Pedido agregarDetalle(Long pedidoId, DetallePedido nuevoDetalle) {
+        Pedido pedidoExistente = obtenerPorId(pedidoId);
+
+        nuevoDetalle.pedido = pedidoExistente;
+        pedidoExistente.detalles.add(nuevoDetalle);
+
+        pedidoExistente.persist();
+        return pedidoExistente;
+    }
+
+    @Transactional
+    public Pedido actualizarDetalle(Long pedidoId, Long detalleId, DetallePedido detalleActualizado) {
+        Pedido pedidoExistente = obtenerPorId(pedidoId);
+
+        DetallePedido detalleExistente = pedidoExistente.detalles.stream()
+                .filter(d -> d.id.equals(detalleId))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("Detalle de pedido no encontrado con id " + detalleId));
+
+        detalleExistente.cantidad = detalleActualizado.cantidad;
+        detalleExistente.precioUnitario = detalleActualizado.precioUnitario;
+
+        pedidoExistente.persist();
+        return pedidoExistente;
+    }
+
+    @Transactional
+    public Pedido eliminarDetalle(Long pedidoId, Long detalleId) {
+        Pedido pedidoExistente = obtenerPorId(pedidoId);
+
+        boolean eliminado = pedidoExistente.detalles.removeIf(d -> d.id.equals(detalleId));
+
+        if (!eliminado) {
+            throw new NotFoundException("Detalle de pedido no encontrado con id " + detalleId);
+        }
+
+        pedidoExistente.persist();
+        return pedidoExistente;
     }
 }

@@ -1,5 +1,6 @@
 package py.edu.ucom.gustodivino.resource;
 
+import py.edu.ucom.gustodivino.domain.DetallePedido;
 import py.edu.ucom.gustodivino.domain.Pedido;
 import py.edu.ucom.gustodivino.service.PedidoService;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -46,6 +47,27 @@ public class PedidoResource {
     public Response eliminar(@PathParam("id") Long id) {
         pedidoService.eliminar(id);
         return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/{id}/detalles")
+    public Response agregarDetalle(@PathParam("id") Long id, DetallePedido detalle) {
+        Pedido pedidoActualizado = pedidoService.agregarDetalle(id, detalle);
+        return Response.ok(pedidoActualizado).build();
+    }
+
+    @PUT
+    @Path("/{id}/detalles/{detalleId}")
+    public Response actualizarDetalle(@PathParam("id") Long id, @PathParam("detalleId") Long detalleId, DetallePedido detalle) {
+        Pedido pedidoActualizado = pedidoService.actualizarDetalle(id, detalleId, detalle);
+        return Response.ok(pedidoActualizado).build();
+    }
+
+    @DELETE
+    @Path("/{id}/detalles/{detalleId}")
+    public Response eliminarDetalle(@PathParam("id") Long id, @PathParam("detalleId") Long detalleId) {
+        Pedido pedidoActualizado = pedidoService.eliminarDetalle(id, detalleId);
+        return Response.ok(pedidoActualizado).build();
     }
 }
 
