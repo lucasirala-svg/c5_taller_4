@@ -31,20 +31,18 @@ public class ProductoService {
     @Transactional
     public Producto actualizar(Long id, Producto productoActualizado) {
         Producto productoExistente = obtenerPorId(id);
-
         productoExistente.nombre = productoActualizado.nombre;
         productoExistente.descripcion = productoActualizado.descripcion;
         productoExistente.precio = productoActualizado.precio;
         productoExistente.categoria = productoActualizado.categoria;
         productoExistente.disponible = productoActualizado.disponible;
-
-        productoRepository.persist(productoExistente);
         return productoExistente;
     }
 
     @Transactional
     public void eliminar(Long id) {
-        Producto productoExistente = obtenerPorId(id);
-        productoRepository.delete(productoExistente);
+        if (!productoRepository.deleteById(id)) {
+            throw new NotFoundException("Producto no encontrado para eliminar");
+        }
     }
 }

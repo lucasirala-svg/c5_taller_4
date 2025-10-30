@@ -8,6 +8,7 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.List;
 
 @Path("/api/pedidos")
 @Produces(MediaType.APPLICATION_JSON)
@@ -20,13 +21,15 @@ public class PedidoResource {
 
     @GET
     public Response listar() {
-        return Response.ok(pedidoService.listar()).build();
+        List<Pedido> pedidos = pedidoService.listar();
+        return Response.ok(pedidos).build();
     }
 
     @GET
     @Path("/{id}")
     public Response obtener(@PathParam("id") Long id) {
-        return Response.ok(pedidoService.obtenerPorId(id)).build();
+        Pedido pedido = pedidoService.obtenerPorId(id);
+        return Response.ok(pedido).build();
     }
 
     @POST
@@ -70,4 +73,3 @@ public class PedidoResource {
         return Response.ok(pedidoActualizado).build();
     }
 }
-

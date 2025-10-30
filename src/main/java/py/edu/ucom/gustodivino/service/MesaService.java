@@ -19,8 +19,7 @@ public class MesaService {
     }
 
     public Mesa obtenerPorId(Long id) {
-        return mesaRepository.findByIdOptional(id)
-                .orElseThrow(() -> new NotFoundException("Mesa no encontrada con id " + id));
+        return mesaRepository.findByIdOptional(id).orElseThrow(() -> new NotFoundException("Mesa no encontrada"));
     }
 
     @Transactional
@@ -32,18 +31,22 @@ public class MesaService {
     @Transactional
     public Mesa actualizar(Long id, Mesa mesaActualizada) {
         Mesa mesaExistente = obtenerPorId(id);
-
         mesaExistente.numeroMesa = mesaActualizada.numeroMesa;
         mesaExistente.capacidad = mesaActualizada.capacidad;
         mesaExistente.estado = mesaActualizada.estado;
-
-        mesaRepository.persist(mesaExistente);
         return mesaExistente;
     }
 
     @Transactional
     public void eliminar(Long id) {
-        Mesa mesaExistente = obtenerPorId(id);
-        mesaRepository.delete(mesaExistente);
+        if (!mesaRepository.deleteById(id)) {
+            throw new NotFoundException("Mesa no encontrada para eliminar");
+        }
+    }
+
+    @Transactional
+    public void actualizarEstado(Long id, String nuevoEstado) {
+        Mesa mesa = obtenerPorId(id);
+        mesa.estado = nuevoEstado;
     }
 }
