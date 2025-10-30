@@ -1,94 +1,147 @@
 package py.edu.ucom.gustodivino.service;
 
 import py.edu.ucom.gustodivino.domain.DetallePedido;
+import py.edu.ucom.gustodivino.domain.Mesa;
 import py.edu.ucom.gustodivino.domain.Pedido;
+import py.edu.ucom.gustodivino.domain.Producto;
+import py.edu.ucom.gustodivino.repository.ClienteRepository;
+import py.edu.ucom.gustodivino.repository.DetallePedidoRepository;
+import py.edu.ucom.gustodivino.repository.PedidoRepository;
+import py.edu.ucom.gustodivino.repository.ProductoRepository;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @ApplicationScoped
 public class PedidoService {
 
+    @Inject
+    PedidoRepository pedidoRepository;
+
+    @Inject
+    DetallePedidoRepository detallePedidoRepository;
+
+    @Inject
+    ProductoRepository productoRepository;
+
+    @Inject
+    ClienteRepository clienteRepository;
+
+    @Inject
+    MesaService mesaService;
+
     public List<Pedido> listar() {
-        return Pedido.listAll();
+        return pedidoRepository.listAll();
     }
 
     public Pedido obtenerPorId(Long id) {
-        return (Pedido) Pedido.findByIdOptional(id).orElseThrow(() -> new NotFoundException("Pedido no encontrado"));
+        return pedidoRepository.findByIdOptional(id).orElseThrow(() -> new NotFoundException("Pedido no encontrado"));
     }
 
     @Transactional
     public Pedido crear(Pedido pedido) {
-        for (DetallePedido detalle : pedido.detalles) {
-            detalle.pedido = pedido;
+        clienteRepository.findByIdOptional(pedido.cliente.id).orElseThrow(() -> new NotFoundException("El cliente especificado no existe."));
+        Mesa mesa = mesaService.obtenerPorId(pedido.mesa.id);
+
+        if (!"disponible".equalsIgnoreCase(mesa.estado)) {
+            throw new BadRequestException("La mesa " + mesa.numeroMesa + " no está disponible.");
         }
-        pedido.persist();
+
+        double totalCalculado = 0.0;
+        if (pedido.detalles != null && !pedido.detalles.isEmpty()) {
+            for (DetallePedido detalle : pedido.detalles) {
+                Producto producto = productoRepository.findByIdOptional(detalle.producto.id)
+                        .orElseThrow(() -> new NotFoundException("Producto con ID " + detalle.producto.id + " no encontrado."));
+                detalle.precioUnitario = producto.precio;
+                totalCalculado += detalle.precioUnitario * detalle.cantidad;
+                detalle.pedido = pedido; // Enlazar detalle con el pedido
+            }
+        }
+
+        pedido.total = totalCalculado;
+        pedido.estado = "Pendiente";
+        pedido.createdAt = LocalDateTime.now();
+
+        pedidoRepository.persist(pedido);
+
+        mesaService.actualizarEstado(mesa.id, "Ocupada");
+
         return pedido;
     }
 
+    @Transactional
     public Pedido actualizar(Long id, Pedido pedidoActualizado) {
         Pedido pedidoExistente = obtenerPorId(id);
-
         pedidoExistente.estado = pedidoActualizado.estado;
         pedidoExistente.tipoPedido = pedidoActualizado.tipoPedido;
-        pedidoExistente.total = pedidoActualizado.total;
-
-        pedidoExistente.detalles.clear();
-
-        for (DetallePedido nuevoDetalle : pedidoActualizado.detalles) {
-            nuevoDetalle.pedido = pedidoExistente;
-            pedidoExistente.detalles.add(nuevoDetalle);
-        }
-
-        pedidoExistente.persist();
         return pedidoExistente;
     }
 
     @Transactional
     public void eliminar(Long id) {
-        Pedido pedidoExistente = obtenerPorId(id);
-        pedidoExistente.delete();
+        if (!pedidoRepository.deleteById(id)) {
+            throw new NotFoundException("Pedido no encontrado para eliminar");
+        }
     }
 
     @Transactional
     public Pedido agregarDetalle(Long pedidoId, DetallePedido nuevoDetalle) {
-        Pedido pedidoExistente = obtenerPorId(pedidoId);
+        Pedido pedido = obtenerPorId(pedidoId);
 
-        nuevoDetalle.pedido = pedidoExistente;
-        pedidoExistente.detalles.add(nuevoDetalle);
+        Producto producto = productoRepository.findByIdOptional(nuevoDetalle.producto.id)
+                .orElseThrow(() -> new NotFoundException("Producto con ID " + nuevoDetalle.producto.id + " no encontrado."));
 
-        pedidoExistente.persist();
-        return pedidoExistente;
+        nuevoDetalle.producto = producto;
+        nuevoDetalle.precioUnitario = producto.precio;
+        nuevoDetalle.pedido = pedido; // Muy importante: enlazar con el pedido
+
+        pedido.detalles.add(nuevoDetalle);
+
+        recalcularTotalPedido(pedido);
+
+        return pedido;
     }
 
     @Transactional
     public Pedido actualizarDetalle(Long pedidoId, Long detalleId, DetallePedido detalleActualizado) {
-        Pedido pedidoExistente = obtenerPorId(pedidoId);
+        Pedido pedido = obtenerPorId(pedidoId);
 
-        DetallePedido detalleExistente = pedidoExistente.detalles.stream()
+        DetallePedido detalleExistente = pedido.detalles.stream()
                 .filter(d -> d.id.equals(detalleId))
                 .findFirst()
-                .orElseThrow(() -> new NotFoundException("Detalle de pedido no encontrado con id " + detalleId));
+                .orElseThrow(() -> new NotFoundException("Detalle con ID " + detalleId + " no encontrado en el pedido " + pedidoId));
 
         detalleExistente.cantidad = detalleActualizado.cantidad;
-        detalleExistente.precioUnitario = detalleActualizado.precioUnitario;
 
-        pedidoExistente.persist();
-        return pedidoExistente;
+        recalcularTotalPedido(pedido);
+
+        return pedido;
     }
 
     @Transactional
     public Pedido eliminarDetalle(Long pedidoId, Long detalleId) {
-        Pedido pedidoExistente = obtenerPorId(pedidoId);
+        Pedido pedido = obtenerPorId(pedidoId);
 
-        boolean eliminado = pedidoExistente.detalles.removeIf(d -> d.id.equals(detalleId));
+        DetallePedido detalleParaEliminar = detallePedidoRepository.findByIdOptional(detalleId)
+                .orElseThrow(() -> new NotFoundException("Detalle con ID " + detalleId + " no encontrado."));
 
-        if (!eliminado) {
-            throw new NotFoundException("Detalle de pedido no encontrado con id " + detalleId);
+        if (!pedido.detalles.remove(detalleParaEliminar)) {
+            throw new NotFoundException("El detalle no pertenecía a este pedido.");
         }
 
-        pedidoExistente.persist();
-        return pedidoExistente;
+        recalcularTotalPedido(pedido);
+
+        return pedido;
+    }
+
+    private void recalcularTotalPedido(Pedido pedido) {
+        pedido.total = pedido.detalles.stream()
+                .mapToDouble(detalle -> detalle.precioUnitario * detalle.cantidad)
+                .sum();
     }
 }
+
